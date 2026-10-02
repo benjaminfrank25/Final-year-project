@@ -1,0 +1,14 @@
+{
+  "name": "school-portal",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green --kill-others-on-fail \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "server": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev",
+    "install:all": "npm i && npm --prefix server i && npm --prefix client i",
+    "seed:admin": "npm --prefix server run seed:admin"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
