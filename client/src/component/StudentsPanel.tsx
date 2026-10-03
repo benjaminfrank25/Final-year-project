@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
-import { CircleAlert, RefreshCw, Search, Users } from "lucide-react";
+import {
+  CircleAlert,
+  RefreshCw,
+  Search,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import ConfirmDialog from "./ConfirmDialog";
 import Notice from "./Notice";
 import Spinner from "./Spinner";
@@ -42,9 +48,15 @@ type StudentsPanelProps = {
   error: string;
   reload: () => void;
   update: (id: string, patch: StudentPatch) => Promise<void>;
+  mode?: "admin" | "rep";
+  approveAll?: () => Promise<number>;
 };
 
-function confirmText(s: Student): string {
+function confirmText(s: Student, mode: "admin" | "rep"): string {
+  if (mode === "rep" && s.status === "pending") {
+    return `${s.fullName} will not be able to log in unless an administrator restores their access.`;
+  }
+
   const repNote =
     s.role === "rep" ? " They'll also lose their course rep access." : "";
 
@@ -59,11 +71,16 @@ export default function StudentsPanel({
   error,
   reload,
   update,
+  mode = "admin",
+  approveAll,
 }: StudentsPanelProps) {
   const [filter, setFilter] = useState<Filter>("pending");
   const [search, setSearch] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(10);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [confirming, setConfirming] = useState<Student | null>(null);
+  const [confirmingApproveAll, setConfirmingApproveAll] = useState(false);
   const [actionError, setActionError] = useTimedMessage(5000);
   const showToast = useToast();
 
@@ -97,6 +114,7 @@ export default function StudentsPanel({
       );
     });
   }, [students, filter, search]);
+  const displayed = visible.slice(0, visibleLimit);
 
   async function run(id: string, patch: StudentPatch) {
     setBusyId(id);
@@ -125,6 +143,24 @@ export default function StudentsPanel({
     const id = confirming.id;
     setConfirming(null);
     await run(id, { status: "rejected" });
+  }
+
+  async function confirmApproveAll() {
+    if (!approveAll) return;
+    setBulkBusy(true);
+    try {
+      const count = await approveAll();
+      setConfirmingApproveAll(false);
+      showToast(
+        count === 1
+          ? "Approved 1 student for your level."
+          : `Approved ${count} students for your level.`,
+      );
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   if (loading) {
@@ -162,21 +198,23 @@ export default function StudentsPanel({
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFilter(f.value)}
-              aria-pressed={filter === f.value}
-              className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-                filter === f.value
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-              }`}
-            >
-              {f.label} <span className="opacity-70">{counts[f.value]}</span>
-            </button>
-          ))}
+          {FILTERS.filter((f) => mode === "admin" || f.value === "pending").map(
+            (f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => setFilter(f.value)}
+                aria-pressed={filter === f.value}
+                className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                  filter === f.value
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                }`}
+              >
+                {f.label} <span className="opacity-70">{counts[f.value]}</span>
+              </button>
+            ),
+          )}
         </div>
 
         <div className="relative w-full sm:max-w-xs">
@@ -194,18 +232,39 @@ export default function StudentsPanel({
         </div>
       </div>
 
+      {mode === "rep" && approveAll && counts.pending > 0 && (
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-blue-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-700">
+            Approve all {counts.pending} pending applications for your level.
+          </p>
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => setConfirmingApproveAll(true)}
+            className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <UserCheck size={16} />
+            Approve all
+          </button>
+        </div>
+      )}
+
       {visible.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-blue-200 bg-white p-12 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-500">
             <Users size={28} />
           </span>
           <p className="max-w-md text-blue-900/70">
-            {search ? "No students match your search." : emptyText[filter]}
+            {search
+              ? "No students match your search."
+              : mode === "rep"
+                ? "No pending registrations for your level."
+                : emptyText[filter]}
           </p>
         </div>
       ) : (
         <ul className="space-y-3">
-          {visible.map((s) => {
+          {displayed.map((s) => {
             const busy = busyId === s.id;
 
             return (
@@ -223,7 +282,12 @@ export default function StudentsPanel({
                     >
                       {s.status}
                     </span>
-                    {s.role === "rep" && (
+                    {mode === "rep" && s.level !== undefined && (
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        Applicant · {s.level} Level
+                      </span>
+                    )}
+                    {mode === "admin" && s.role === "rep" && (
                       <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
                         Course rep
                       </span>
@@ -236,23 +300,26 @@ export default function StudentsPanel({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={s.level ?? ""}
-                    disabled={busy}
-                    onChange={(e) =>
-                      run(s.id, { level: Number(e.target.value) as Level })
-                    }
-                    aria-label={`Level for ${s.fullName}`}
-                    className="cursor-pointer rounded-lg border border-blue-200 bg-white px-2.5 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                  >
-                    {LEVELS.map((l) => (
-                      <option key={l} value={l}>
-                        {l} Level
-                      </option>
-                    ))}
-                  </select>
+                  {mode === "admin" && (
+                    <select
+                      value={s.level ?? ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        run(s.id, { level: Number(e.target.value) as Level })
+                      }
+                      aria-label={`Level for ${s.fullName}`}
+                      className="cursor-pointer rounded-lg border border-blue-200 bg-white px-2.5 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                    >
+                      {LEVELS.map((l) => (
+                        <option key={l} value={l}>
+                          {l} Level
+                        </option>
+                      ))}
+                    </select>
+                  )}
 
-                  {(s.status === "pending" || s.status === "rejected") && (
+                  {(s.status === "pending" ||
+                    (mode === "admin" && s.status === "rejected")) && (
                     <button
                       type="button"
                       disabled={busy}
@@ -264,7 +331,9 @@ export default function StudentsPanel({
                     </button>
                   )}
 
-                  {s.status === "active" && s.role === "student" && (
+                  {mode === "admin" &&
+                    s.status === "active" &&
+                    s.role === "student" && (
                     <button
                       type="button"
                       disabled={busy}
@@ -275,7 +344,9 @@ export default function StudentsPanel({
                     </button>
                   )}
 
-                  {s.status === "active" && s.role === "rep" && (
+                  {mode === "admin" &&
+                    s.status === "active" &&
+                    s.role === "rep" && (
                     <button
                       type="button"
                       disabled={busy}
@@ -286,21 +357,48 @@ export default function StudentsPanel({
                     </button>
                   )}
 
-                  {(s.status === "pending" || s.status === "active") && (
+                  {(mode === "rep" && s.status === "pending") ||
+                  (mode === "admin" &&
+                    (s.status === "pending" || s.status === "active")) ? (
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => setConfirming(s)}
                       className="cursor-pointer rounded-lg border border-red-200 bg-white px-3.5 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {s.status === "pending" ? "Reject" : "Revoke access"}
+                      {mode === "rep" || s.status === "pending"
+                        ? "Reject"
+                        : "Revoke access"}
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {visible.length > 10 && (
+        <div className="mt-5 flex justify-center gap-3">
+          {visibleLimit < visible.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleLimit((limit) => limit + 10)}
+              className="cursor-pointer rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+            >
+              View more students ({visible.length - visibleLimit} remaining)
+            </button>
+          )}
+          {visibleLimit > 10 && (
+            <button
+              type="button"
+              onClick={() => setVisibleLimit(10)}
+              className="cursor-pointer rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+            >
+              Show fewer
+            </button>
+          )}
+        </div>
       )}
 
       {confirming && (
@@ -310,11 +408,22 @@ export default function StudentsPanel({
               ? "Reject this registration?"
               : "Revoke access?"
           }
-          message={confirmText(confirming)}
+          message={confirmText(confirming, mode)}
           confirmLabel={confirming.status === "pending" ? "Reject" : "Revoke"}
           danger
           onConfirm={confirmReject}
           onCancel={() => setConfirming(null)}
+        />
+      )}
+
+      {confirmingApproveAll && (
+        <ConfirmDialog
+          title="Approve all pending students?"
+          message={`This will activate all ${counts.pending} pending student applications for your level. They will be able to log in immediately.`}
+          confirmLabel="Approve all"
+          loading={bulkBusy}
+          onConfirm={confirmApproveAll}
+          onCancel={() => setConfirmingApproveAll(false)}
         />
       )}
     </div>

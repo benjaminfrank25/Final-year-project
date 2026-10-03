@@ -29,6 +29,8 @@ function serializeStudent(s: StudentLike) {
   };
 }
 
+export { serializeStudent };
+
 const levelSchema = z
   .number()
   .refine(isValidLevel, "Level must be 100, 200, 300, 400 or 500");

@@ -80,6 +80,15 @@ export default function LoginPage() {
           required
         />
 
+        <div className="-mt-2 text-right">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-medium text-blue-300 hover:text-white"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         <Button type="submit" loading={loading}>
           {loading ? "Logging in..." : "Log in"}
         </Button>

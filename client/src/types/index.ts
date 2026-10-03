@@ -29,6 +29,15 @@ export interface Student {
   createdAt: string;
 }
 
+export interface Announcement {
+  id: string;
+  title: string;
+  message: string;
+  createdByName: string;
+  level?: Level;
+  createdAt: string;
+}
+
 export interface Material {
   id: string;
   title: string;

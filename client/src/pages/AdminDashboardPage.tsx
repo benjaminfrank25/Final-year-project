@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
+  Bell,
   BookOpen,
   Clock,
   FileText,
@@ -9,17 +10,20 @@ import {
   Users,
 } from "lucide-react";
 import DashboardLayout from "../component/DashboardLayout";
+import AnnouncementsPanel from "../component/AnnouncementsPanel";
 import MaterialsPanel from "../component/MaterialsPanel";
 import StatCard from "../component/StatCard";
 import StudentsPanel from "../component/StudentsPanel";
 import UploadPanel from "../component/UploadPanel";
 import { useMaterials } from "../hooks/useMaterials";
+import { useAnnouncements } from "../hooks/useAnnouncements";
 import { useStudents } from "../hooks/useStudents";
 import { currentSemester } from "../lib/semesters";
 import { useAppSelector } from "../store/hooks";
 
 const TABS = [
   { value: "students", label: "Students", icon: Users },
+  { value: "announcements", label: "Announcements", icon: Bell },
   { value: "upload", label: "Upload material", icon: Upload },
   { value: "materials", label: "Materials", icon: FileText },
 ] as const;
@@ -27,13 +31,19 @@ const TABS = [
 type Tab = (typeof TABS)[number]["value"];
 
 function isTab(value: string | null): value is Tab {
-  return value === "students" || value === "upload" || value === "materials";
+  return (
+    value === "students" ||
+    value === "announcements" ||
+    value === "upload" ||
+    value === "materials"
+  );
 }
 
 export default function AdminDashboardPage() {
   const user = useAppSelector((s) => s.auth.user);
   const students = useStudents();
   const materials = useMaterials();
+  const announcements = useAnnouncements();
 
   const [now] = useState(() => Date.now());
   const [params, setParams] = useSearchParams();
@@ -62,8 +72,8 @@ export default function AdminDashboardPage() {
           Welcome, {user.fullName}
         </h1>
         <p className="mt-2 max-w-xl text-blue-100">
-          Approve students, upload study materials, and keep everything
-          organized.
+          Approve students, share announcements, upload study materials, and
+          keep everything organized.
         </p>
       </section>
 
@@ -133,6 +143,17 @@ export default function AdminDashboardPage() {
             error={students.error}
             reload={students.reload}
             update={students.update}
+          />
+        )}
+
+        {tab === "announcements" && (
+          <AnnouncementsPanel
+            announcements={announcements.announcements}
+            loading={announcements.loading}
+            error={announcements.error}
+            reload={announcements.reload}
+            create={announcements.create}
+            mode="admin"
           />
         )}
 

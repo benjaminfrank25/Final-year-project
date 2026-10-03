@@ -8,6 +8,7 @@ import { canAccessLevel, canManageLevel, isValidLevel } from "../utils/access";
 import { looksLikeMaterialFile, removeFile } from "../utils/files";
 import { MATERIAL_DIR } from "../config/storage";
 import { generateMaterialDescription } from "../services/aiDescription";
+import { Announcement } from "../models/Announcement";
 import {
   MATERIAL_CATEGORIES,
   MATERIAL_SEMESTERS,
@@ -162,6 +163,18 @@ export const createMaterial = asyncHandler(async (req, res) => {
       size: file.size,
       uploadedBy: new mongoose.Types.ObjectId(req.user.id),
     });
+
+    try {
+      await Announcement.create({
+        title: `New material uploaded · ${data.courseCode}`,
+        message: `A new material, "${data.title}", was uploaded for ${data.level} Level (${data.courseCode}).`,
+        createdByName: req.user.fullName,
+        level: data.level,
+      });
+    } catch (error) {
+      await Material.findByIdAndDelete(material._id);
+      throw error;
+    }
 
     res
       .status(201)

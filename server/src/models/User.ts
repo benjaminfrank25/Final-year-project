@@ -16,6 +16,8 @@ export interface IUser {
   role: Role;
   level?: Level;
   status: Status;
+  passwordResetTokenHash?: string;
+  passwordResetExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +75,8 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
       enum: STATUSES,
       default: "pending",
     },
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpiresAt: { type: Date, select: false },
   },
   { timestamps: true },
 );

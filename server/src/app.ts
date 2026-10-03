@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env";
 import authRoutes from "./routes/auth.routes";
 import adminRoutes from "./routes/admin.routes";
+import repRoutes from "./routes/rep.routes";
+import announcementRoutes from "./routes/announcement.routes";
 import materialRoutes from "./routes/material.routes";
 import libraryRoutes from "./routes/library.routes";
 import testRoutes from "./routes/test.routes";
@@ -21,6 +23,8 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/rep", repRoutes);
+app.use("/api/announcements", announcementRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/library", libraryRoutes);
 

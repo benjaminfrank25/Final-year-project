@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import DashboardLayout from "../component/DashboardLayout";
+import AnnouncementsPanel from "../component/AnnouncementsPanel";
 import ContinueCard from "../component/ContinueCard";
 import CourseCard from "../component/CourseCard";
 import MaterialRow from "../component/MaterialRow";
@@ -20,6 +21,7 @@ import RecentCard from "../component/RecentCard";
 import SemesterSwitch from "../component/SemesterSwitch";
 import Spinner from "../component/Spinner";
 import { useLibrary } from "../hooks/useLibrary";
+import { useAnnouncements } from "../hooks/useAnnouncements";
 import { useMaterials } from "../hooks/useMaterials";
 import { CATEGORIES } from "../lib/catergories";
 import { formatDate } from "../lib/format";
@@ -67,6 +69,7 @@ function StatCard({ icon, label, value, tone }: StatCardProps) {
 export default function StudentDashboardPage() {
   const user = useAppSelector((s) => s.auth.user);
   const { materials, loading, error, reload } = useMaterials();
+  const announcements = useAnnouncements();
   const { states, toggleBookmark, markOpened, saveProgress } = useLibrary();
 
   const [now] = useState(() => Date.now());
@@ -262,6 +265,16 @@ export default function StudentDashboardPage() {
           }
         />
       </div>
+
+      <section className="mt-8">
+        <AnnouncementsPanel
+          announcements={announcements.announcements}
+          loading={announcements.loading}
+          error={announcements.error}
+          reload={announcements.reload}
+          mode="student"
+        />
+      </section>
 
       {loading ? (
         <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-blue-100 bg-white p-12 text-blue-600 shadow-sm">

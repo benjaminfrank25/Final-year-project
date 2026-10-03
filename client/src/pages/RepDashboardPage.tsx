@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BookOpen, FileText, Upload } from "lucide-react";
+import { BookOpen, FileText, Upload, Users } from "lucide-react";
 import DashboardLayout from "../component/DashboardLayout";
+import AnnouncementsPanel from "../component/AnnouncementsPanel";
 import MaterialsPanel from "../component/MaterialsPanel";
 import StatCard from "../component/StatCard";
+import StudentsPanel from "../component/StudentsPanel";
 import UploadPanel from "../component/UploadPanel";
 import { useMaterials } from "../hooks/useMaterials";
+import { useAnnouncements } from "../hooks/useAnnouncements";
+import { useStudents } from "../hooks/useStudents";
 import { currentSemester } from "../lib/semesters";
 import { useAppSelector } from "../store/hooks";
 
 const TABS = [
+  { value: "students", label: "Student applications", icon: Users },
   { value: "upload", label: "Upload material", icon: Upload },
   { value: "materials", label: "My level's materials", icon: FileText },
 ] as const;
@@ -17,21 +22,26 @@ const TABS = [
 type Tab = (typeof TABS)[number]["value"];
 
 function isTab(value: string | null): value is Tab {
-  return value === "upload" || value === "materials";
+  return value === "students" || value === "upload" || value === "materials";
 }
 
 export default function RepDashboardPage() {
   const user = useAppSelector((s) => s.auth.user);
   const materials = useMaterials();
+  const students = useStudents("/rep/students");
+  const announcements = useAnnouncements();
 
   const [now] = useState(() => Date.now());
   const [params, setParams] = useSearchParams();
 
   const tabParam = params.get("tab");
-  const tab: Tab = isTab(tabParam) ? tabParam : "upload";
+  const tab: Tab = isTab(tabParam) ? tabParam : "students";
 
   const courseCount = new Set(materials.materials.map((m) => m.courseCode))
     .size;
+  const pendingCount = students.students.filter(
+    (student) => student.status === "pending",
+  ).length;
 
   if (!user || user.level === undefined) return null;
 
@@ -45,13 +55,29 @@ export default function RepDashboardPage() {
           Welcome, {user.fullName}
         </h1>
         <p className="mt-2 max-w-xl text-blue-100">
-          Upload study materials for {user.level} Level and keep them organized.
-          Your classmates will see new uploads straight away.
+          Review student applications for {user.level} Level and upload study
+          materials for your classmates.
         </p>
       </section>
 
+      <section className="mt-6">
+        <AnnouncementsPanel
+          announcements={announcements.announcements}
+          loading={announcements.loading}
+          error={announcements.error}
+          reload={announcements.reload}
+          mode="student"
+        />
+      </section>
+
       {/* Stats */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          tone="green"
+          icon={<Users size={22} />}
+          label="Pending applications"
+          value={students.loading ? "–" : pendingCount}
+        />
         <StatCard
           tone="blue"
           icon={<FileText size={22} />}
@@ -86,12 +112,29 @@ export default function RepDashboardPage() {
             >
               <Icon size={16} />
               {t.label}
+              {t.value === "students" && pendingCount > 0 && (
+                <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white">
+                  {pendingCount}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
       <div className="mt-5">
+        {tab === "students" && (
+          <StudentsPanel
+            students={students.students}
+            loading={students.loading}
+            error={students.error}
+            reload={students.reload}
+            update={students.update}
+            approveAll={students.approveAll}
+            mode="rep"
+          />
+        )}
+
         {tab === "upload" && (
           <UploadPanel
             defaultSemester={currentSemester(now)}

@@ -8,6 +8,8 @@ import LevelGuard from "./component/LevelGuard";
 import HomeRedirect from "./pages/HomeRedirect";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import StudentDashboardPage from "./pages/StudentDashboardPage";
 import RepDashboardPage from "./pages/RepDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
@@ -37,6 +39,8 @@ export default function App() {
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route path="/" element={<HomeRedirect />} />
 
