@@ -13,10 +13,17 @@ interface RequestOptions {
   body?: unknown;
 }
 
+const API_BASE_URL = import.meta.env.PROD
+  ? "https://final-year-project-p1hu.onrender.com"
+  : "";
+
 async function send<T>(path: string, init: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, { ...init, credentials: "include" });
+    res = await fetch(`${API_BASE_URL}/api${path}`, {
+      ...init,
+      credentials: "include",
+    });
   } catch {
     throw new ApiError(0, "Can't reach the server. Check your connection.");
   }
@@ -138,7 +145,7 @@ export function apiFormWithProgress<T>(
       for (const line of lines) handleLine(line);
     };
 
-    xhr.open(method, `/api${path}`);
+    xhr.open(method, `${API_BASE_URL}/api${path}`);
     xhr.withCredentials = true;
     xhr.upload.onprogress = (event) => {
       onUploadProgress({
