@@ -9,6 +9,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { Document, Page } from "../lib/pdf";
+import { apiUrl } from "../lib/api";
 import Spinner from "./Spinner";
 import type { Material } from "../types";
 
@@ -31,7 +32,7 @@ export default function PdfViewer({
   onProgress,
   onClose,
 }: PdfViewerProps) {
-  const fileUrl = `/api/materials/${material.id}/file`;
+  const fileUrl = apiUrl(`/materials/${material.id}/file`);
 
   // Must be memoized, otherwise the PDF reloads on every render
   const file = useMemo(

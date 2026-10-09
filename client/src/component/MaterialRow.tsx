@@ -1,6 +1,7 @@
 import { Bookmark, Download, Eye, FileText } from "lucide-react";
 import { categoryName } from "../lib/catergories";
 import { formatBytes, formatDate } from "../lib/format";
+import { apiUrl } from "../lib/api";
 import type { Material } from "../types";
 
 type MaterialRowProps = {
@@ -20,7 +21,7 @@ export default function MaterialRow({
   onToggleBookmark,
   onView,
 }: MaterialRowProps) {
-  const fileUrl = `/api/materials/${material.id}/file`;
+  const fileUrl = apiUrl(`/materials/${material.id}/file`);
   const fileExtension = material.originalName.split(".").pop()?.toLowerCase();
   const isPastQuestion = material.category === "past-question";
   const resumable = progress !== null && progress.page > 1;

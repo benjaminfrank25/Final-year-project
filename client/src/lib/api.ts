@@ -17,10 +17,14 @@ const API_BASE_URL = import.meta.env.PROD
   ? "https://final-year-project-p1hu.onrender.com"
   : "";
 
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}/api${path}`;
+}
+
 async function send<T>(path: string, init: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}/api${path}`, {
+    res = await fetch(apiUrl(path), {
       ...init,
       credentials: "include",
     });
@@ -145,7 +149,7 @@ export function apiFormWithProgress<T>(
       for (const line of lines) handleLine(line);
     };
 
-    xhr.open(method, `${API_BASE_URL}/api${path}`);
+    xhr.open(method, apiUrl(path));
     xhr.withCredentials = true;
     xhr.upload.onprogress = (event) => {
       onUploadProgress({

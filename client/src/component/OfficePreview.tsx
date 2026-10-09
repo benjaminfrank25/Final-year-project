@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, FileText, X } from "lucide-react";
+import { apiUrl } from "../lib/api";
 import Spinner from "./Spinner";
 import type { Material } from "../types";
 
@@ -14,8 +15,8 @@ export default function OfficePreview({
 }: OfficePreviewProps) {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const previewUrl = `/api/materials/${material.id}/preview`;
-  const downloadUrl = `/api/materials/${material.id}/file?download=1`;
+  const previewUrl = apiUrl(`/materials/${material.id}/preview`);
+  const downloadUrl = apiUrl(`/materials/${material.id}/file?download=1`);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
