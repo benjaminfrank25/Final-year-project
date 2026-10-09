@@ -17,6 +17,7 @@ import { formatDate } from "../lib/format";
 import { inputClass } from "../lib/ui";
 import type { Level, Status, Student } from "../types";
 import { useToast } from "../hooks/useToast";
+import BulkStudentRegistrationPanel from "./BulkStudentRegistrationPanel";
 
 type Filter = "pending" | "active" | "rejected" | "rep" | "all";
 
@@ -48,6 +49,7 @@ type StudentsPanelProps = {
   error: string;
   reload: () => void;
   update: (id: string, patch: StudentPatch) => Promise<void>;
+  onImported?: () => void;
   mode?: "admin" | "rep";
   approveAll?: () => Promise<number>;
 };
@@ -71,6 +73,7 @@ export default function StudentsPanel({
   error,
   reload,
   update,
+  onImported,
   mode = "admin",
   approveAll,
 }: StudentsPanelProps) {
@@ -194,6 +197,10 @@ export default function StudentsPanel({
         <div className="mb-4">
           <Notice>{actionError}</Notice>
         </div>
+      )}
+
+      {mode === "admin" && (
+        <BulkStudentRegistrationPanel onImported={onImported ?? reload} />
       )}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -2,7 +2,10 @@ import { ErrorRequestHandler, RequestHandler } from "express";
 import mongoose from "mongoose";
 import multer from "multer";
 import { ZodError } from "zod";
-import { MAX_UPLOAD_MB } from "../config/storage";
+import {
+  MAX_CLASS_LIST_UPLOAD_MB,
+  MAX_UPLOAD_MB,
+} from "../config/storage";
 import { ApiError } from "../utils/ApiError";
 import { log } from "../utils/logger";
 
@@ -12,7 +15,7 @@ export const notFound: RequestHandler = (req, res) => {
     .json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 };
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof ApiError) {
     res.status(err.statusCode).json({ message: err.message });
     return;
@@ -20,9 +23,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
+      const maxFileSize =
+        req.originalUrl.startsWith("/api/admin/students/import")
+          ? MAX_CLASS_LIST_UPLOAD_MB
+          : MAX_UPLOAD_MB;
       res
         .status(413)
-        .json({ message: `File is too large (max ${MAX_UPLOAD_MB}MB)` });
+        .json({ message: `File is too large (max ${maxFileSize}MB)` });
       return;
     }
     res.status(400).json({ message: err.message });

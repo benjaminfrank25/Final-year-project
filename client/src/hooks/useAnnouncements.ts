@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorMessage } from "../lib/api";
-import type { Announcement } from "../types";
+import type { Announcement, Level } from "../types";
 
 export function useAnnouncements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -44,12 +44,12 @@ export function useAnnouncements() {
   }, []);
 
   const create = useCallback(
-    async (title: string, message: string) => {
+    async (title: string, message: string, level: Level) => {
       const data = await api<{ announcement: Announcement }>(
         "/admin/announcements",
         {
           method: "POST",
-          body: { title, message },
+          body: { title, message, level },
         },
       );
       setAnnouncements((current) => [data.announcement, ...current].slice(0, 50));

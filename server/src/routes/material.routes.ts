@@ -5,6 +5,7 @@ import {
   describePdf,
   deleteMaterial,
   listMaterials,
+  streamOfficePreview,
   streamMaterialFile,
   updateMaterial,
 } from "../controllers/material.controller";
@@ -23,6 +24,7 @@ const describeLimiter = rateLimit({
 
 // Any logged-in, approved user (the controllers enforce the level rules)
 router.get("/", requireAuth, listMaterials);
+router.get("/:id/preview", requireAuth, streamOfficePreview);
 router.get("/:id/file", requireAuth, streamMaterialFile);
 router.post(
   "/describe",

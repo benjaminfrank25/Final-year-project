@@ -15,15 +15,11 @@ export default function RecentCard({
   now,
   onOpen,
 }: RecentCardProps) {
-  const isOfficeDocument = /\.(docx|pptx)$/i.test(material.originalName);
-
   return (
-    <a
-      href={`/api/materials/${material.id}/file${isOfficeDocument ? "?download=1" : ""}`}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      type="button"
       onClick={onOpen}
-      className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-linear-to-br from-white to-blue-100 p-4 shadow-sm transition hover:border-blue-300"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-blue-100 bg-linear-to-br from-white to-blue-100 p-4 text-left shadow-sm transition hover:border-blue-300"
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
         <FileText size={20} />
@@ -41,6 +37,6 @@ export default function RecentCard({
           {timeAgo(openedAt, now)}
         </span>
       </span>
-    </a>
+    </button>
   );
 }

@@ -35,8 +35,8 @@ export function useStudents(endpoint = "/admin/students") {
     };
   }, [endpoint, reloadKey]);
 
-  const reload = useCallback(() => {
-    setLoading(true);
+  const reload = useCallback((showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError("");
     setReloadKey((k) => k + 1);
   }, []);

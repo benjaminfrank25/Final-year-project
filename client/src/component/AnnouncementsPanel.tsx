@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Bell, CircleAlert, Megaphone, RefreshCw, Send } from "lucide-react";
-import type { Announcement } from "../types";
+import type { Announcement, Level } from "../types";
 import { formatDate } from "../lib/format";
 import { inputClass, labelClass } from "../lib/ui";
 import { useToast } from "../hooks/useToast";
@@ -15,8 +15,10 @@ type AnnouncementsPanelProps = {
   error: string;
   reload: () => void;
   mode: "admin" | "student";
-  create?: (title: string, message: string) => Promise<Announcement>;
+  create?: (title: string, message: string, level: Level) => Promise<Announcement>;
 };
+
+const LEVELS: Level[] = [100, 200, 300, 400, 500];
 
 export default function AnnouncementsPanel({
   announcements,
@@ -28,6 +30,7 @@ export default function AnnouncementsPanel({
 }: AnnouncementsPanelProps) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [level, setLevel] = useState<Level | "">("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useTimedMessage(5000);
   const showToast = useToast();
@@ -38,11 +41,13 @@ export default function AnnouncementsPanel({
     if (!create) return;
     setBusy(true);
     try {
-      await create(title.trim(), message.trim());
+      if (level === "") return;
+      await create(title.trim(), message.trim(), level);
       setTitle("");
       setMessage("");
+      setLevel("");
       setActionError("");
-      showToast("Announcement sent to all active students.");
+      showToast("Announcement sent to the selected level.");
     } catch (err) {
       setActionError(errorMessage(err));
     } finally {
@@ -63,8 +68,8 @@ export default function AnnouncementsPanel({
               Send an announcement
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              This will appear on every active student and course rep dashboard,
-              across all levels.
+              Students and course reps assigned to the selected level will see
+              this announcement.
             </p>
           </div>
 
@@ -75,6 +80,30 @@ export default function AnnouncementsPanel({
           )}
 
           <div className="space-y-4">
+            <label className={labelClass}>
+              Level
+              <select
+                value={level}
+                onChange={(event) =>
+                  setLevel(
+                    event.target.value === ""
+                      ? ""
+                      : (Number(event.target.value) as Level),
+                  )
+                }
+                required
+                className={`${inputClass} mt-1.5`}
+              >
+                <option value="" disabled>
+                  Select a level
+                </option>
+                {LEVELS.map((value) => (
+                  <option key={value} value={value}>
+                    {value} Level
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className={labelClass}>
               Title
               <input
@@ -107,7 +136,7 @@ export default function AnnouncementsPanel({
             className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy ? <Spinner size={16} /> : <Send size={16} />}
-            Send to students
+            Send to level
           </button>
         </form>
       )}

@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/ApiError";
 import { Level, User } from "../models/User";
 import { serializeStudent } from "./admin.controller";
+import { createAuditLog } from "../utils/audit";
 
 const decisionSchema = z
   .object({
@@ -38,6 +39,12 @@ export const approveAllLevelApplications = asyncHandler(async (req, res) => {
     { role: "student", level, status: "pending" },
     { $set: { status: "active" } },
   );
+  await createAuditLog(req.user!, {
+    action: "students.approved.bulk",
+    targetType: "user",
+    targetName: `${result.modifiedCount} students`,
+    details: `Approved ${result.modifiedCount} pending student(s) in ${level} Level`,
+  });
 
   res.json({ approvedCount: result.modifiedCount });
 });
@@ -62,6 +69,13 @@ export const decideLevelApplication = asyncHandler(async (req, res) => {
   );
 
   if (!student) throw new ApiError(404, "Pending registration not found");
+  await createAuditLog(req.user!, {
+    action: `student.${status}`,
+    targetType: "user",
+    targetId: String(student._id),
+    targetName: `${student.fullName} (${student.email})`,
+    details: `${status === "active" ? "Approved" : "Rejected"} for ${level} Level`,
+  });
 
   res.json({ student: serializeStudent(student) });
 });

@@ -38,6 +38,19 @@ export interface Announcement {
   createdAt: string;
 }
 
+export interface AuditLog {
+  id: string;
+  actorName: string;
+  actorEmail: string;
+  actorRole: Role;
+  action: string;
+  targetType: string;
+  targetId?: string;
+  targetName: string;
+  details?: string;
+  createdAt: string;
+}
+
 export interface Material {
   id: string;
   title: string;

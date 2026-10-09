@@ -1,17 +1,10 @@
 import multer from "multer";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
-import { MAX_UPLOAD_MB, MATERIAL_DIR } from "../config/storage";
+import { MAX_UPLOAD_MB } from "../config/storage";
 import { ApiError } from "../utils/ApiError";
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, MATERIAL_DIR),
-  filename: (_req, file, cb) =>
-    cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
-});
-
 export const uploadMaterial = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     const extension = path.extname(file.originalname).toLowerCase();

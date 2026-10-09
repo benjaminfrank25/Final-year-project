@@ -31,6 +31,7 @@ import type { Material, MaterialCategory, Semester } from "../types";
 
 //loaded whenn a pdf is big
 const PdfViewer = lazy(() => import("../component/PdfViewer"));
+const OfficePreview = lazy(() => import("../component/OfficePreview"));
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -97,18 +98,10 @@ export default function StudentDashboardPage() {
 
   function openViewer(material: Material) {
     markOpened(material.id);
-
-    if (/\.(docx|pptx)$/i.test(material.originalName)) {
-      window.open(
-        `/api/materials/${material.id}/file?download=1`,
-        "_blank",
-        "noopener,noreferrer",
-      );
-      return;
-    }
-
-    const startPage = states[material.id]?.lastPage ?? 1;
-    setViewing({ material, startPage });
+    setViewing({
+      material,
+      startPage: states[material.id]?.lastPage ?? 1,
+    });
   }
 
   const semesterCounts = useMemo(() => {
@@ -507,7 +500,7 @@ export default function StudentDashboardPage() {
         </>
       )}
 
-      {/* PDF viewer */}
+      {/* In-platform material preview */}
       {viewing && (
         <Suspense
           fallback={
@@ -516,13 +509,21 @@ export default function StudentDashboardPage() {
             </div>
           }
         >
-          <PdfViewer
-            key={viewing.material.id}
-            material={viewing.material}
-            startPage={viewing.startPage}
-            onProgress={saveProgress}
-            onClose={() => setViewing(null)}
-          />
+          {/\.pdf$/i.test(viewing.material.originalName) ? (
+            <PdfViewer
+              key={viewing.material.id}
+              material={viewing.material}
+              startPage={viewing.startPage}
+              onProgress={saveProgress}
+              onClose={() => setViewing(null)}
+            />
+          ) : (
+            <OfficePreview
+              key={viewing.material.id}
+              material={viewing.material}
+              onClose={() => setViewing(null)}
+            />
+          )}
         </Suspense>
       )}
     </DashboardLayout>

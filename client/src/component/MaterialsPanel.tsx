@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import {
   CircleAlert,
   Eye,
@@ -24,6 +24,9 @@ import { SEMESTERS } from "../lib/semesters";
 import { inputClass } from "../lib/ui";
 import type { Level, Material, Semester } from "../types";
 import { useToast } from "../hooks/useToast";
+
+const PdfViewer = lazy(() => import("./PdfViewer"));
+const OfficePreview = lazy(() => import("./OfficePreview"));
 
 const shortSemester: Record<Semester, string> = {
   harmattan: "Harmattan",
@@ -51,6 +54,7 @@ export default function MaterialsPanel({
   const [semesterFilter, setSemesterFilter] = useState("");
   const [editing, setEditing] = useState<Material | null>(null);
   const [deleting, setDeleting] = useState<Material | null>(null);
+  const [viewing, setViewing] = useState<Material | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useTimedMessage(5000);
   const showToast = useToast();
@@ -266,16 +270,15 @@ export default function MaterialsPanel({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <a
-                  href={`/api/materials/${m.id}/file`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => setViewing(m)}
                   aria-label={`View ${m.title}`}
                   title="View"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50"
+                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50"
                 >
                   <Eye size={18} />
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={() => setEditing(m)}
@@ -312,6 +315,32 @@ export default function MaterialsPanel({
             onCancel={() => setEditing(null)}
           />
         </Modal>
+      )}
+
+      {viewing && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 text-white">
+              <Spinner size={36} />
+            </div>
+          }
+        >
+          {/\.pdf$/i.test(viewing.originalName) ? (
+            <PdfViewer
+              key={viewing.id}
+              material={viewing}
+              startPage={1}
+              onProgress={() => {}}
+              onClose={() => setViewing(null)}
+            />
+          ) : (
+            <OfficePreview
+              key={viewing.id}
+              material={viewing}
+              onClose={() => setViewing(null)}
+            />
+          )}
+        </Suspense>
       )}
 
       {deleting && (

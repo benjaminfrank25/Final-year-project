@@ -25,6 +25,8 @@ export interface IMaterial {
   semester: MaterialSemester;
   category: MaterialCategory;
   fileName: string;
+  cloudinaryPublicId?: string;
+  cloudinaryUrl?: string;
   originalName: string;
   size: number;
   uploadedBy: Types.ObjectId;
@@ -59,6 +61,8 @@ const materialSchema = new Schema<IMaterial>(
       index: true,
     },
     fileName: { type: String, required: true, unique: true },
+    cloudinaryPublicId: { type: String },
+    cloudinaryUrl: { type: String },
     originalName: { type: String, required: true, trim: true, maxlength: 255 },
     size: { type: Number, required: true },
     uploadedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

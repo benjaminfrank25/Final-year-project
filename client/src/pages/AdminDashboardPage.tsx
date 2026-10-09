@@ -5,6 +5,7 @@ import {
   BookOpen,
   Clock,
   FileText,
+  History,
   Upload,
   UserCheck,
   Users,
@@ -15,6 +16,7 @@ import MaterialsPanel from "../component/MaterialsPanel";
 import StatCard from "../component/StatCard";
 import StudentsPanel from "../component/StudentsPanel";
 import UploadPanel from "../component/UploadPanel";
+import AuditLogsPanel from "../component/AuditLogsPanel";
 import { useMaterials } from "../hooks/useMaterials";
 import { useAnnouncements } from "../hooks/useAnnouncements";
 import { useStudents } from "../hooks/useStudents";
@@ -26,6 +28,7 @@ const TABS = [
   { value: "announcements", label: "Announcements", icon: Bell },
   { value: "upload", label: "Upload material", icon: Upload },
   { value: "materials", label: "Materials", icon: FileText },
+  { value: "audit", label: "Audit log", icon: History },
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
@@ -35,7 +38,8 @@ function isTab(value: string | null): value is Tab {
     value === "students" ||
     value === "announcements" ||
     value === "upload" ||
-    value === "materials"
+    value === "materials" ||
+    value === "audit"
   );
 }
 
@@ -143,6 +147,7 @@ export default function AdminDashboardPage() {
             error={students.error}
             reload={students.reload}
             update={students.update}
+            onImported={() => students.reload(false)}
           />
         )}
 
@@ -172,6 +177,8 @@ export default function AdminDashboardPage() {
             reload={materials.reload}
           />
         )}
+
+        {tab === "audit" && <AuditLogsPanel />}
       </div>
     </DashboardLayout>
   );

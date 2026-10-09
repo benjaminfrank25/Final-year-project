@@ -17,6 +17,14 @@ import {
   MaterialSemester,
 } from "../models/Material";
 import { Level, User } from "../models/User";
+import { createAuditLog } from "../utils/audit";
+import { getOfficePreviewPdf, removeOfficePreview } from "../services/officePreview";
+import {
+  deleteCloudinaryMaterial,
+  downloadCloudinaryMaterial,
+  uploadMaterialToCloudinary,
+} from "../services/cloudinary";
+import { log } from "../utils/logger";
 
 interface MaterialLike {
   _id: unknown;
@@ -143,44 +151,76 @@ export const createMaterial = asyncHandler(async (req, res) => {
     // A course rep can only upload to their own level
     assertCanManage(req.user, data.level);
 
-    if (!(await looksLikeMaterialFile(file.path))) {
+    if (!looksLikeMaterialFile(file.buffer, file.originalname)) {
       throw new ApiError(
         400,
         "That file is not a valid PDF, Word, or PowerPoint document",
       );
     }
 
-    const material = await Material.create({
-      title: data.title,
-      description: data.description || undefined,
-      lecturerName: data.lecturerName || undefined,
-      courseCode: data.courseCode,
-      level: data.level as Level,
-      semester: data.semester,
-      category: data.category,
-      fileName: file.filename,
-      originalName: file.originalname,
-      size: file.size,
-      uploadedBy: new mongoose.Types.ObjectId(req.user.id),
-    });
+    const fileName = `${new mongoose.Types.ObjectId()}${path.extname(file.originalname).toLowerCase()}`;
+    const cloudinaryAsset = await uploadMaterialToCloudinary(
+      file.buffer,
+      fileName,
+    );
 
     try {
-      await Announcement.create({
-        title: `New material uploaded · ${data.courseCode}`,
-        message: `A new material, "${data.title}", was uploaded for ${data.level} Level (${data.courseCode}).`,
-        createdByName: req.user.fullName,
-        level: data.level,
+      const material = await Material.create({
+        title: data.title,
+        description: data.description || undefined,
+        lecturerName: data.lecturerName || undefined,
+        courseCode: data.courseCode,
+        level: data.level as Level,
+        semester: data.semester,
+        category: data.category,
+        fileName,
+        cloudinaryPublicId: cloudinaryAsset.public_id,
+        cloudinaryUrl: cloudinaryAsset.secure_url,
+        originalName: file.originalname,
+        size: file.size,
+        uploadedBy: new mongoose.Types.ObjectId(req.user.id),
       });
+
+      let generatedAnnouncementId: mongoose.Types.ObjectId | undefined;
+      try {
+        const announcement = await Announcement.create({
+          title: `New material uploaded · ${data.courseCode}`,
+          message: `A new material, "${data.title}", was uploaded for ${data.level} Level (${data.courseCode}).`,
+          createdByName: req.user.fullName,
+          level: data.level,
+        });
+        generatedAnnouncementId = announcement._id;
+
+        await createAuditLog(req.user, {
+          action: "material.uploaded",
+          targetType: "material",
+          targetId: String(material._id),
+          targetName: `${material.courseCode} — ${material.title}`,
+          details: `Uploaded for ${material.level} Level`,
+        });
+      } catch (error) {
+        if (generatedAnnouncementId) {
+          await Announcement.findByIdAndDelete(generatedAnnouncementId);
+        }
+        await Material.findByIdAndDelete(material._id);
+        throw error;
+      }
+
+      res
+        .status(201)
+        .json({ material: serializeMaterial(material, req.user.fullName) });
     } catch (error) {
-      await Material.findByIdAndDelete(material._id);
+      try {
+        await deleteCloudinaryMaterial(cloudinaryAsset.public_id);
+      } catch (cleanupError) {
+        log.error(
+          "Failed to clean up a Cloudinary upload after material creation failed",
+          cleanupError,
+        );
+      }
       throw error;
     }
-
-    res
-      .status(201)
-      .json({ material: serializeMaterial(material, req.user.fullName) });
   } catch (err) {
-    await removeFile(file.path);
     throw err;
   }
 });
@@ -217,6 +257,13 @@ export const updateMaterial = asyncHandler(async (req, res) => {
   }
 
   await material.save();
+  await createAuditLog(req.user, {
+    action: "material.updated",
+    targetType: "material",
+    targetId: String(material._id),
+    targetName: `${material.courseCode} — ${material.title}`,
+    details: `Updated material for ${material.level} Level`,
+  });
 
   res.json({ material: serializeMaterial(material) });
 });
@@ -288,6 +335,30 @@ export const streamMaterialFile = asyncHandler(async (req, res, next) => {
     throw new ApiError(403, "You don't have access to this material");
   }
 
+  const extension = path.extname(material.originalName).toLowerCase();
+  const contentType =
+    extension === ".docx"
+      ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      : extension === ".pptx"
+        ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        : "application/pdf";
+  const disposition = req.query.download === "1" ? "attachment" : "inline";
+  const asciiName = material.originalName
+    .replace(/[^\x20-\x7E]/g, "_")
+    .replace(/["\\]/g, "_");
+  const headers = {
+    "Content-Type": contentType,
+    "Content-Disposition": `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(material.originalName)}`,
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "private, no-store",
+  };
+
+  if (material.cloudinaryUrl) {
+    const file = await downloadCloudinaryMaterial(material.cloudinaryUrl);
+    res.status(200).set(headers).send(file);
+    return;
+  }
+
   const filePath = path.join(MATERIAL_DIR, path.basename(material.fileName));
 
   try {
@@ -296,22 +367,51 @@ export const streamMaterialFile = asyncHandler(async (req, res, next) => {
     throw new ApiError(404, "The file is missing on the server");
   }
 
-  const disposition = req.query.download === "1" ? "attachment" : "inline";
-  const asciiName = material.originalName
-    .replace(/[^\x20-\x7E]/g, "_")
-    .replace(/["\\]/g, "_");
-
   res.sendFile(
     filePath,
     {
       dotfiles: "deny",
       headers: {
-        "Content-Type": material.fileName.toLowerCase().endsWith(".docx")
-          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          : material.fileName.toLowerCase().endsWith(".pptx")
-            ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            : "application/pdf",
-        "Content-Disposition": `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(material.originalName)}`,
+        ...headers,
+      },
+    },
+    (err) => {
+      if (err && !res.headersSent) next(err);
+    },
+  );
+});
+
+export const streamOfficePreview = asyncHandler(async (req, res, next) => {
+  if (!req.user) throw new ApiError(401, "Not authenticated");
+
+  const id = String(req.params.id);
+  assertValidId(id);
+  const material = await Material.findById(id);
+  if (!material) throw new ApiError(404, "Material not found");
+  if (!canAccessLevel(req.user, material.level)) {
+    throw new ApiError(403, "You don't have access to this material");
+  }
+
+  if (!/\.(docx|pptx)$/i.test(material.originalName)) {
+    throw new ApiError(400, "Office previews are only available for Word and PowerPoint files");
+  }
+
+  const previewPath = await getOfficePreviewPdf(
+    material.fileName,
+    material.cloudinaryUrl,
+  );
+  const previewName = material.originalName.replace(/\.(docx|pptx)$/i, ".pdf");
+  const asciiName = previewName
+    .replace(/[^\x20-\x7E]/g, "_")
+    .replace(/["\\]/g, "_");
+
+  res.sendFile(
+    previewPath,
+    {
+      dotfiles: "deny",
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(previewName)}`,
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, no-store",
       },
@@ -334,8 +434,20 @@ export const deleteMaterial = asyncHandler(async (req, res) => {
 
   assertCanManage(req.user, material.level);
 
+  if (material.cloudinaryPublicId) {
+    await deleteCloudinaryMaterial(material.cloudinaryPublicId);
+  } else {
+    await removeFile(path.join(MATERIAL_DIR, path.basename(material.fileName)));
+  }
   await Material.findByIdAndDelete(id);
-  await removeFile(path.join(MATERIAL_DIR, path.basename(material.fileName)));
+  await removeOfficePreview(material.fileName);
+  await createAuditLog(req.user, {
+    action: "material.deleted",
+    targetType: "material",
+    targetId: String(material._id),
+    targetName: `${material.courseCode} — ${material.title}`,
+    details: `Deleted material from ${material.level} Level`,
+  });
 
   res.json({ message: "Material deleted" });
 });
