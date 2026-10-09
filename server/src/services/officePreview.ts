@@ -70,7 +70,7 @@ async function convertOfficeFile(
     if (cloudinaryUrl) {
       await fs.writeFile(
         sourcePath,
-        await downloadCloudinaryMaterial(cloudinaryUrl),
+        await downloadCloudinaryMaterial(cloudinaryUrl, fileName),
       );
     } else {
       try {

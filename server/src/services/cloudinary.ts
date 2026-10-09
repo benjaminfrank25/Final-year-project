@@ -1,4 +1,5 @@
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
+import path from "node:path";
 import { env } from "../config/env";
 import { ApiError } from "../utils/ApiError";
 
@@ -57,7 +58,10 @@ export async function deleteCloudinaryMaterial(publicId: string): Promise<void> 
   }
 }
 
-export async function downloadCloudinaryMaterial(url: string): Promise<Buffer> {
+export async function downloadCloudinaryMaterial(
+  url: string,
+  originalName: string,
+): Promise<Buffer> {
   const cloudName = configuredCloudinary();
   const assetUrl = new URL(url);
   if (
@@ -74,5 +78,19 @@ export async function downloadCloudinaryMaterial(url: string): Promise<Buffer> {
   if (!response.ok) {
     throw new ApiError(502, "The material could not be retrieved from Cloudinary");
   }
-  return Buffer.from(await response.arrayBuffer());
+  const file = Buffer.from(await response.arrayBuffer());
+  const extension = path.extname(originalName).toLowerCase();
+  const validPdf =
+    extension === ".pdf" && file.subarray(0, 5).toString("latin1") === "%PDF-";
+  const validOffice =
+    [".docx", ".pptx"].includes(extension) &&
+    file.subarray(0, 4).toString("latin1") === "PK\u0003\u0004";
+
+  if (!validPdf && !validOffice) {
+    throw new ApiError(
+      502,
+      `Cloudinary returned invalid file data for ${extension || "the requested file"}`,
+    );
+  }
+  return file;
 }

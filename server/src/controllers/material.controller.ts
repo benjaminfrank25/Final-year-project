@@ -354,7 +354,10 @@ export const streamMaterialFile = asyncHandler(async (req, res, next) => {
   };
 
   if (material.cloudinaryUrl) {
-    const file = await downloadCloudinaryMaterial(material.cloudinaryUrl);
+    const file = await downloadCloudinaryMaterial(
+      material.cloudinaryUrl,
+      material.originalName,
+    );
     res.status(200).set(headers).send(file);
     return;
   }
