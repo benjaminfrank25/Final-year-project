@@ -1,0 +1,24 @@
+name: Stay alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Ping health endpoint
+        env:
+          HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "Set the HEALTHCHECK_URL repository variable to the full /api/health URL."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 "$HEALTHCHECK_URL"
