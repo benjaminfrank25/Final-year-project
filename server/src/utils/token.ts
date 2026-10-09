@@ -6,7 +6,7 @@ export const COOKIE_NAME = "token";
 
 const baseCookieOptions: CookieOptions = {
   httpOnly: true,
-  sameSite: "lax",
+  sameSite: env.NODE_ENV === "production" ? "none" : "lax",
   secure: env.NODE_ENV === "production",
   path: "/",
 };
